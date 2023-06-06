@@ -1,0 +1,12 @@
+Capital City,Forest Village
+Forest Village,Mountain Village
+Mountain Village,Capital City
+Mountain Village,Desert Village
+Desert Village,Coast Village
+Coast Village,River Village
+River Village,Valley Village
+Valley Village,Hill Village
+Hill Village,Cliff Village
+Cliff Village,Island Village
+Island Village,Storm Village
+Storm Village,Capital City
