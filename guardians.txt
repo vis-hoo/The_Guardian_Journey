@@ -20,9 +20,16 @@ Rowan,81,Cyrus,Desert Village
 Xander,78,Cyrus,Desert Village
 Elysia,93,Aurelia,Mountain Village
 Silas,76,Galen,Coast Village
+Hermit,68,Silas,Coast Village
 Raine,89,Selene,River Village
+Tyrone,73,Raine,River Village
 Archer,72,Rowan,Valley Village
+Jostin,69,Archer,Valley Village
 Seraphina,86,Thalia,Hill Village
+Fiba,80,Seraphina,Hill Village
 Isolde,91,Luther,Cliff Village
+Joshue,78,Isolde,Cliff Village
 Vesper,74,Luna,Island Village
+Scarlett,61,Vesper,Island Village
 Kai,99,Stormheart,Storm Village
+Merida,90,Kai,Storm Village

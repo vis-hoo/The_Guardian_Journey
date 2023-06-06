@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <bits/stdc++.h>
 #include <iostream>
 #include <vector>
@@ -5,21 +6,33 @@
 #define APPRENTICEPOWER MAXPOWER / 2;
 using namespace std;
 
+#pragma region Structures and Classes
 struct Village;
 struct Guardian;
+struct TrainingHistory;
+struct JourneyHistory;
 
 struct Village{
     string name;
-    bool visited;
-    vector<Guardian*> *guardiansList;
+    vector<Guardian*> *guardiansInVillage;
 };
 
 struct Guardian{
     string name;
     int power;
-    bool isPlayer;
-    Guardian *master;
+    Guardian *firstApprentice;
+    Guardian *nextInList;
     Village *village;
+};
+
+struct TrainingHistory{
+    Village *village;
+    Guardian *rival;
+    bool winner;
+};
+
+struct JourneyHistory{
+    vector<Village*> journey;
 };
 
 class VillagesControl{
@@ -40,7 +53,7 @@ class VillagesControl{
 class GuardiansControl{
     public:
         GuardiansControl();
-        void initializeGuardian(string name, string power, string masterName, string village, VillagesControl vC);
+        void initializeGuardian(string name, string power, string masterName, string village, VillagesControl vControl);
         Guardian* findByName(string name);
         void printGuardianInfo(Guardian* current);
         void printGuardiansList();
@@ -48,23 +61,32 @@ class GuardiansControl{
     private:
         vector<Guardian*> *guardiansList;
 };
+#pragma endregion
 
+#pragma region Function Declarations
 void loadData(VillagesControl vControl, GuardiansControl gControl);
+void addGuardianNode(Guardian **list, Guardian *node);
+void sortGuardiansInVillage(VillagesControl vControl, GuardiansControl gControl);
+bool verifyData(VillagesControl vControl, GuardiansControl gControl);
+
 void gameLoop(VillagesControl vControl, GuardiansControl gControl);
 int startMenu();
 Guardian* createGuardian(GuardiansControl gControl, VillagesControl vControl);
 Guardian* selectGuardian(GuardiansControl gControl);
+
 int intInput(string msg, int min, int max);
 void clearConsole();
+#pragma endregion
 
 int main(){
     VillagesControl vControl;
     GuardiansControl gControl;
     loadData(vControl, gControl);
-    gameLoop(vControl, gControl);
+    if(verifyData(vControl, gControl)) gameLoop(vControl, gControl);
     return 0;
 }
 
+#pragma region VillagesControl Functions
 VillagesControl::VillagesControl(){
     villagesList = new vector<Village*>;
     adjacencyMatrix = new vector<vector<int>>;
@@ -74,8 +96,7 @@ void VillagesControl::initializeVillage(string name){
     if(findByName(name) == nullptr){
         Village *newVillage = new Village;
         newVillage->name = name;
-        newVillage->visited = false;
-        newVillage->guardiansList = new vector<Guardian*>;
+        newVillage->guardiansInVillage = new vector<Guardian*>;
         villagesList->push_back(newVillage);
 
         vector<vector<int>> &matrix = *adjacencyMatrix;
@@ -144,22 +165,29 @@ vector<Village*>* VillagesControl::getVillagesList(){
 vector<vector<int>>* VillagesControl::getAdjacencyMatrix(){
     return adjacencyMatrix;
 }
+#pragma endregion
 
+#pragma region GuardiansControl Functions
 GuardiansControl::GuardiansControl(){
     guardiansList = new vector<Guardian*>;
 }
 
-void GuardiansControl::initializeGuardian(string name, string power, string masterName, string village, VillagesControl vC){
+void GuardiansControl::initializeGuardian(string name, string power, string masterName, string village, VillagesControl vControl){
     if(findByName(name) == nullptr){
         Guardian *newGuardian = new Guardian;
         newGuardian->name = name;
         newGuardian->power = stoi(power);
-        newGuardian->isPlayer = false;
-        newGuardian->master = findByName(masterName);
+        newGuardian->firstApprentice = nullptr;
+        newGuardian->nextInList = nullptr;
 
-        Village *auxVillage = vC.findByName(village);
-        newGuardian->village = auxVillage;
-        if(auxVillage != nullptr) auxVillage->guardiansList->push_back(newGuardian);
+        Village *auxVillage = vControl.findByName(village);
+        if(auxVillage != nullptr) {
+            newGuardian->village = auxVillage;
+            auxVillage->guardiansInVillage->push_back(newGuardian);
+        }
+
+        Guardian *auxMaster = findByName(masterName);
+        if(auxMaster != nullptr) addGuardianNode(&auxMaster->firstApprentice, newGuardian);
 
         guardiansList->push_back(newGuardian);
     }
@@ -176,11 +204,8 @@ Guardian* GuardiansControl::findByName(string name){
 void GuardiansControl::printGuardianInfo(Guardian* current){
     if(current != nullptr){
         cout << current->name;
-        if(current->isPlayer) cout << " --------------> JUGADOR";
         cout << "\n  Poder: " << current->power;
-        if(current->master != nullptr) cout << "\n  Maestro: " << current->master->name;
-        if(current->village == nullptr) cout << "\n  Aldea: Tesla";
-        else cout << "\n  Aldea: " << current->village->name;
+        cout << "\n  Aldea: " << current->village->name;
         cout << endl;
     }
 }
@@ -200,7 +225,9 @@ void GuardiansControl::printGuardiansList(){
 vector<Guardian*>* GuardiansControl::getGuardiansList(){
     return guardiansList;
 }
+#pragma endregion
 
+#pragma region Loading Data
 void loadData(VillagesControl vControl, GuardiansControl gControl){
     ifstream file;
     string name, power, masterName, connectedVillage;
@@ -224,16 +251,49 @@ void loadData(VillagesControl vControl, GuardiansControl gControl){
         gControl.initializeGuardian(name, power, masterName, connectedVillage, vControl);
     }
     file.close();
+    sortGuardiansInVillage(vControl, gControl);
 }
 
+void addGuardianNode(Guardian **list, Guardian *node){
+    if(*list == nullptr) *list = node;
+    else{
+        Guardian *aux = *list;
+        while(aux->nextInList != nullptr) aux = aux->nextInList;
+        aux->nextInList = node;
+    }
+}
+
+void sortGuardiansInVillage(VillagesControl vControl, GuardiansControl gControl){
+    vector<Village*> &villages = *vControl.getVillagesList();
+    for(int i = 0; i < villages.size(); i++){
+        vector<Guardian*> &guardians = *villages[i]->guardiansInVillage;
+        sort(guardians.begin(), guardians.end(), [](const Guardian *left, const Guardian *right) { return (left->power < right->power); });
+    }
+}
+
+bool verifyData(VillagesControl vControl, GuardiansControl gControl){
+    vector<Village*> &villages = *vControl.getVillagesList();
+    for(int i = 0; i < villages.size(); i++)
+        if(villages[i]->guardiansInVillage->size() < 2){
+            cout << "No hay suficientes guardianes en la aldea " << villages[i]->name;
+            return false;
+        }
+    return true;
+}
+#pragma endregion
+
+#pragma region Game Body
 void gameLoop(VillagesControl vControl, GuardiansControl gControl){
     Guardian *player;
+    TrainingHistory *trainingHistory = new TrainingHistory;
+    JourneyHistory *journeyHistory = new JourneyHistory;
+
     if(startMenu() == 1) player = createGuardian(gControl, vControl);
     else player = selectGuardian(gControl);
+    journeyHistory->journey.push_back(player->village);
     clearConsole();
     gControl.printGuardianInfo(player);
-
-    //-----------------------------------
+    
     while(1){
         break;    
     }
@@ -266,16 +326,12 @@ Guardian* createGuardian(GuardiansControl gControl, VillagesControl vControl){
         Guardian *newGuardian = new Guardian;
         newGuardian->name = name;
         newGuardian->power = APPRENTICEPOWER;
-        newGuardian->isPlayer = true;
-        newGuardian->master = nullptr;
         newGuardian->village = villages[selectedVillage - 1];
         guardians.push_back(newGuardian);
         return newGuardian;
     }
     else{
         current->power = APPRENTICEPOWER;
-        current->isPlayer = true;
-        current->master = nullptr;
         return current;
     }
 }
@@ -293,11 +349,11 @@ Guardian* selectGuardian(GuardiansControl gControl){
             break;
         }
     current->power = APPRENTICEPOWER;
-    current->isPlayer = true;
-    current->master = nullptr;
     return current;
 }
+#pragma endregion
 
+#pragma region Auxiliar Functions
 int intInput(string msg, int min, int max){
     int opt;
     do{
@@ -317,3 +373,4 @@ void clearConsole(){
     system("pause");
     system("cls");
 }
+#pragma endregion
