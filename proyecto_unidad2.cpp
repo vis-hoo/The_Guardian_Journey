@@ -2,8 +2,8 @@
 #include <bits/stdc++.h>
 #include <iostream>
 #include <vector>
-#define MAXPOWER 100
-#define APPRENTICEPOWER MAXPOWER / 2;
+#define MAX_POWER 100
+#define APPRENTICE_POWER MAX_POWER / 2;
 using namespace std;
 
 #pragma region Structures and Classes
@@ -55,6 +55,8 @@ class GuardiansControl{
         GuardiansControl();
         void initializeGuardian(string name, string power, string masterName, string village, VillagesControl vControl);
         Guardian* findByName(string name);
+        Guardian* findMaster(Guardian* requested);
+        int guardianIndex(Guardian* current);
         void printGuardianInfo(Guardian* current);
         void printGuardiansList();
         vector<Guardian*>* getGuardiansList();
@@ -63,7 +65,7 @@ class GuardiansControl{
 };
 #pragma endregion
 
-#pragma region Function Declarations
+#pragma region Functions Declaration
 void loadData(VillagesControl vControl, GuardiansControl gControl);
 void addGuardianNode(Guardian **list, Guardian *node);
 void sortGuardiansInVillage(VillagesControl vControl, GuardiansControl gControl);
@@ -71,8 +73,11 @@ bool verifyData(VillagesControl vControl, GuardiansControl gControl);
 
 void gameLoop(VillagesControl vControl, GuardiansControl gControl);
 int startMenu();
-Guardian* createGuardian(GuardiansControl gControl, VillagesControl vControl);
-Guardian* selectGuardian(GuardiansControl gControl);
+Guardian* createGuardian(VillagesControl vControl, GuardiansControl gControl);
+Guardian* selectGuardian(VillagesControl vControl, GuardiansControl gControl);
+Guardian* guardianToPlayer(Guardian* guardian, VillagesControl vControl, GuardiansControl gControl);
+void removeFromTree(Guardian* master, Guardian* requested);
+void transferApprentices(Guardian* guardian, GuardiansControl gControl);
 
 int intInput(string msg, int min, int max);
 void clearConsole();
@@ -201,6 +206,34 @@ Guardian* GuardiansControl::findByName(string name){
     return nullptr;
 }
 
+Guardian* GuardiansControl::findMaster(Guardian* requested){
+    vector<Guardian*> &list = *guardiansList;
+    queue<Guardian*> q;
+    
+    q.push(list[0]);
+    while(!q.empty()){
+        Guardian* master = q.front();
+        q.pop();
+        if(master->firstApprentice != nullptr){
+            Guardian* aux = master->firstApprentice;
+            while(1){
+                if(aux == requested) return master;
+                q.push(aux);
+                if(aux->nextInList == nullptr) break;
+                aux = aux->nextInList;
+            }
+        }
+    }
+    return nullptr;
+}
+
+int GuardiansControl::guardianIndex(Guardian* current){
+    vector<Guardian*> &list = *guardiansList;
+    for(int i = 0; i < guardiansList->size(); i++)
+        if(current = list[i]) return i;
+    return -1;
+}
+
 void GuardiansControl::printGuardianInfo(Guardian* current){
     if(current != nullptr){
         cout << current->name;
@@ -288,8 +321,8 @@ void gameLoop(VillagesControl vControl, GuardiansControl gControl){
     TrainingHistory *trainingHistory = new TrainingHistory;
     JourneyHistory *journeyHistory = new JourneyHistory;
 
-    if(startMenu() == 1) player = createGuardian(gControl, vControl);
-    else player = selectGuardian(gControl);
+    if(startMenu() == 1) player = createGuardian(vControl, gControl);
+    else player = selectGuardian(vControl, gControl);
     journeyHistory->journey.push_back(player->village);
     clearConsole();
     gControl.printGuardianInfo(player);
@@ -309,10 +342,9 @@ int startMenu(){
     return intInput("\n\nIngresa el numero de tu opcion: ", 1, 2);
 }
 
-Guardian* createGuardian(GuardiansControl gControl, VillagesControl vControl){
+Guardian* createGuardian(VillagesControl vControl, GuardiansControl gControl){
     clearConsole();
     vector<Village*> &villages = *vControl.getVillagesList();
-    vector<Guardian*> &guardians = *gControl.getGuardiansList();
     string name;
     cout << "\n\nIngresa un nombre para tu Guardian: ";
     cin >> name;
@@ -325,18 +357,16 @@ Guardian* createGuardian(GuardiansControl gControl, VillagesControl vControl){
         int selectedVillage = intInput("\n\nIngresa el numero de tu opcion: ", 1, villages.size());
         Guardian *newGuardian = new Guardian;
         newGuardian->name = name;
-        newGuardian->power = APPRENTICEPOWER;
+        newGuardian->power = APPRENTICE_POWER;
+        newGuardian->firstApprentice = nullptr;
+        newGuardian->nextInList = nullptr;
         newGuardian->village = villages[selectedVillage - 1];
-        guardians.push_back(newGuardian);
         return newGuardian;
     }
-    else{
-        current->power = APPRENTICEPOWER;
-        return current;
-    }
+    else return guardianToPlayer(current, vControl, gControl);
 }
 
-Guardian* selectGuardian(GuardiansControl gControl){
+Guardian* selectGuardian(VillagesControl vControl, GuardiansControl gControl){
     clearConsole();
     vector<Guardian*> &list = *gControl.getGuardiansList();
     Guardian* current;
@@ -345,11 +375,80 @@ Guardian* selectGuardian(GuardiansControl gControl){
     int selectedGuardian = intInput("\n\nIngresa el numero de tu opcion: ", 1, list.size() - 1);
     for(int i = 0; i < list.size(); i++)
         if(i == selectedGuardian){
-            current = gControl.findByName(list[i]->name);
+            current = list[i];
             break;
         }
-    current->power = APPRENTICEPOWER;
-    return current;
+    return guardianToPlayer(current, vControl, gControl);
+}
+
+Guardian* guardianToPlayer(Guardian* guardian, VillagesControl vControl, GuardiansControl gControl){
+    Guardian *master = gControl.findMaster(guardian);
+
+    removeFromTree(master, guardian);
+    if(guardian->firstApprentice != nullptr) transferApprentices(guardian, gControl);
+
+    guardian->power = APPRENTICE_POWER;
+    guardian->firstApprentice = nullptr;
+    guardian->nextInList = nullptr;
+
+    vector<Guardian*> &guardiansInVillage = *guardian->village->guardiansInVillage;
+    for(int i = 0; i < guardiansInVillage.size(); i++)
+        if(guardiansInVillage[i] == guardian){
+            guardiansInVillage.erase(guardiansInVillage.begin() + i);
+            break;
+        }
+
+    if(guardiansInVillage.size() < 2){
+        vector<Village*> &villages = *vControl.getVillagesList();
+        for(int i = 0; i < villages.size(); i++){
+            if(villages[i]->guardiansInVillage->size() > 2){
+                vector<Guardian*> &auxVillage = *villages[i]->guardiansInVillage;
+                    Guardian* aux = auxVillage[0];
+                    auxVillage.erase(auxVillage.begin());
+                    aux->village = guardian->village;
+                    guardiansInVillage.push_back(aux);
+            }
+        }
+    }
+    return guardian;
+}
+
+void removeFromTree(Guardian* master, Guardian* requested){
+    Guardian *current = master->firstApprentice;
+    while(1){
+        if(current == requested){
+            if(current == master->firstApprentice) master->firstApprentice = current->nextInList;
+            else{
+                Guardian *aux = master->firstApprentice;
+                while(aux->nextInList != current) aux = aux->nextInList;
+                aux->nextInList = current->nextInList;               
+            }
+            break;
+        }
+        else current = current->nextInList;
+    }
+}
+
+void transferApprentices(Guardian* guardian, GuardiansControl gControl){
+    vector<Guardian*> &list = *gControl.getGuardiansList();
+    queue<Guardian*> q;
+    q.push(list[0]);
+    while(!q.empty()){
+        Guardian* current = q.front();
+        q.pop();
+        if(current->firstApprentice != nullptr){
+            Guardian *aux = current->firstApprentice;
+            while(1){
+                q.push(aux);
+                if(aux->nextInList == nullptr) break;
+                aux = aux->nextInList;
+            }
+        }
+        else{
+            current->firstApprentice = guardian->firstApprentice;
+            break;
+        }
+    }
 }
 #pragma endregion
 
