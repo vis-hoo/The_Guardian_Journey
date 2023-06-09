@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <bits/stdc++.h>
+#include <cstdlib>
 #include <iostream>
+#include <time.h>
 #include <vector>
 #define MAX_POWER 100
 #define APPRENTICE_POWER MAX_POWER / 2;
@@ -14,6 +16,7 @@ struct JourneyHistory;
 
 struct Village{
     string name;
+    bool trainingFinished;
     vector<Guardian*> *guardiansInVillage;
 };
 
@@ -78,12 +81,18 @@ Guardian* selectGuardian(VillagesControl vControl, GuardiansControl gControl);
 Guardian* guardianToPlayer(Guardian* guardian, VillagesControl vControl, GuardiansControl gControl);
 void removeFromTree(Guardian* master, Guardian* requested);
 void transferApprentices(Guardian* guardian, GuardiansControl gControl);
+int gameMenu(Village* currentVillage);
+void train(Guardian** player, Village** currentVillage);
+void travel(Guardian** player, Village** currentVillage, JourneyHistory** journey, VillagesControl vControl);
+void alchemy(Guardian** player, Village* currentVillage, VillagesControl vControl);
+void gameEnd(Guardian* player, JourneyHistory* journeyHistory, GuardiansControl gControl);
 
 int intInput(string msg, int min, int max);
 void clearConsole();
 #pragma endregion
 
 int main(){
+    srand(time(0));
     VillagesControl vControl;
     GuardiansControl gControl;
     loadData(vControl, gControl);
@@ -101,6 +110,7 @@ void VillagesControl::initializeVillage(string name){
     if(findByName(name) == nullptr){
         Village *newVillage = new Village;
         newVillage->name = name;
+        newVillage->trainingFinished = false;
         newVillage->guardiansInVillage = new vector<Guardian*>;
         villagesList->push_back(newVillage);
 
@@ -318,17 +328,33 @@ bool verifyData(VillagesControl vControl, GuardiansControl gControl){
 #pragma region Game Body
 void gameLoop(VillagesControl vControl, GuardiansControl gControl){
     Guardian *player;
+    Village *currentVillage;
     TrainingHistory *trainingHistory = new TrainingHistory;
     JourneyHistory *journeyHistory = new JourneyHistory;
 
     if(startMenu() == 1) player = createGuardian(vControl, gControl);
     else player = selectGuardian(vControl, gControl);
-    journeyHistory->journey.push_back(player->village);
+    currentVillage = player->village;
+    journeyHistory->journey.push_back(currentVillage);
+
     clearConsole();
     gControl.printGuardianInfo(player);
     
     while(1){
-        break;    
+        if(player->power >= 90){
+            gameEnd(player, journeyHistory, gControl);
+            break;
+        }
+        else{
+            int opt = gameMenu(currentVillage);
+            if (opt == 1) train(&player, &currentVillage);
+            else if (opt == 2) travel(&player, &currentVillage, &journeyHistory, vControl);
+            else if (opt == 3) alchemy(&player, currentVillage, vControl);
+            else{
+                gameEnd(player, journeyHistory, gControl);
+                break;
+            }
+        }
     }
 }
 
@@ -336,7 +362,7 @@ int startMenu(){
     clearConsole();
     int opt;
     cout << "\n\n\tTHE GUARDIAN JOURNEY";
-    cout << "\n\nPara iniciar tu viaje, debes seleccionar una de las opciones: ";
+    cout << "\n\nPara iniciar tu viaje, debes seleccionar una de las opciones:";
     cout << "\n\n  1. Crear un Guardian.";
     cout << "\n  2. Seleccionar un Guardian existente.";
     return intInput("\n\nIngresa el numero de tu opcion: ", 1, 2);
@@ -448,6 +474,101 @@ void transferApprentices(Guardian* guardian, GuardiansControl gControl){
             current->firstApprentice = guardian->firstApprentice;
             break;
         }
+    }
+}
+
+int gameMenu(Village* currentVillage){
+    clearConsole();
+    int opt;
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    cout << "\n\nEn este momento te encuentras en la aldea " << currentVillage->name << ".";
+    cout << "\nSelecciona la accion que deseas realizar:";
+    cout << "\n\n  1. Entrenar.";
+    cout << "\n  2. Viajar.";
+    cout << "\n  3. Alquimia.";
+    cout << "\n  4. Salir del juego."; // OPCIÓN DE PRUEBA - Para comprobar datos durante la ejecución.
+    return intInput("\n\nIngresa el numero de tu opcion: ", 1, 4);
+}
+
+void train(Guardian** player, Village** currentVillage){
+    clearConsole();
+}
+
+void travel(Guardian** player, Village** currentVillage, JourneyHistory** journey, VillagesControl vControl){
+    vector<Village*> &list = *vControl.getVillagesList();
+    vector<vector<int>> &matrix = *vControl.getAdjacencyMatrix();
+    vector<Village*> *temp = new vector<Village*>;
+    vector<Village*> &auxTemp = *temp;
+    Guardian* &auxPlayer = *player;
+    Village* &auxVillage = *currentVillage;
+    JourneyHistory* &auxJourney = *journey;
+
+    clearConsole();
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    cout << "\n\nElige la aldea a la que deseas viajar:\n";
+    int opt, counter = 0;
+    for(int i = 0; i < list.size(); i++)
+        if(list[i] == *currentVillage)
+            for(int j = 0; j < matrix[i].size(); j++)
+                if(matrix[i][j] == 1) {
+                    counter++;
+                    cout << "\n\t" << counter <<". " << list[j]->name;
+                    temp->push_back(list[j]);
+                }
+    opt = intInput("\n\nIngresa el numero de tu opcion: ", 1, counter);
+
+    auxVillage = auxTemp[opt - 1];
+    auxPlayer->power++;
+    auxJourney->journey.push_back(auxVillage);
+    free(temp);
+}
+
+// (rand() % (max - min + 1)) + min
+void alchemy(Guardian** player, Village* currentVillage, VillagesControl vControl){
+    vector<Village*> &list = *vControl.getVillagesList();
+    vector<vector<int>> &matrix = *vControl.getAdjacencyMatrix();
+    vector<Village*> *temp = new vector<Village*>;
+    vector<Village*> &auxTemp = *temp;
+    Guardian* &auxPlayer = *player;
+    int min = 2, max = 4, counter = 0, opt;
+
+    clearConsole();
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    cout << "\n\nElige la aldea a la que deseas agregar un camino:\n";
+    for(int i = 0; i < list.size(); i++)
+        if(list[i] == currentVillage)
+            for(int j = 0; j < matrix[i].size(); j++)
+                if(matrix[i][j] == 0  && list[j] != currentVillage) {
+                    counter++;
+                    cout << "\n\t" << counter <<". " << list[j]->name;
+                    temp->push_back(list[j]);
+                }
+    if(counter != 0){
+        opt = intInput("\n\nIngresa el numero de tu opcion: ", 1, counter);
+        int cost = (rand() % (max - min + 1)) + min;
+        if(auxPlayer->power < cost) cout << "\n\nEl costo del camino es de " << cost << " puntos.\nNo tienes suficientes puntos.";
+        else{
+            for(int i = 0; i < list.size(); i++)
+                if(list[i] == currentVillage)
+                    for(int j = 0; j < matrix[i].size(); j++)
+                        if(list[j] == auxTemp[opt - 1]){
+                            matrix[i][j] = 1;
+                            matrix[j][i] = 1;
+                        }
+            auxPlayer->power -= cost;
+            cout << "\n\nCamino creado.\nEl costo del camino es de " << cost << " puntos.\nTu nuevo puntaje es " << auxPlayer->power << " puntos.";
+        }
+    }
+    free(temp);
+}
+
+void gameEnd(Guardian* player, JourneyHistory* journeyHistory, GuardiansControl gControl){
+    clearConsole();
+    gControl.printGuardianInfo(player);
+    cout << "\n\nHistorial de Viaje:";
+    for(int i = 0; i < journeyHistory->journey.size(); i ++){
+        cout << "\n" << i + 1 << ". " << journeyHistory->journey[i]->name;
+        if(i == 0) cout << " - ORIGEN";
     }
 }
 #pragma endregion
