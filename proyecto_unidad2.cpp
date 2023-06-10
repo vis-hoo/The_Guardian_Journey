@@ -16,6 +16,7 @@ struct JourneyHistory;
 
 struct Village{
     string name;
+    bool visited;
     bool trainingFinished;
     vector<Guardian*> *guardiansInVillage;
 };
@@ -32,6 +33,8 @@ struct TrainingHistory{
     Village *village;
     Guardian *rival;
     bool winner;
+    int score, pointsAtTheMoment;
+    TrainingHistory *nextCombat;
 };
 
 struct JourneyHistory{
@@ -81,11 +84,16 @@ Guardian* selectGuardian(VillagesControl vControl, GuardiansControl gControl);
 Guardian* guardianToPlayer(Guardian* guardian, VillagesControl vControl, GuardiansControl gControl);
 void removeFromTree(Guardian* master, Guardian* requested);
 void transferApprentices(Guardian* guardian, GuardiansControl gControl);
-int gameMenu(Village* currentVillage);
-void train(Guardian** player, Village** currentVillage);
-void travel(Guardian** player, Village** currentVillage, JourneyHistory** journey, VillagesControl vControl);
+int gameMenu(Guardian* player, Village* currentVillage, GuardiansControl gControl);
+void train(Guardian** player, Village** currentVillage, vector<Guardian*>* currentFought, int* currentPoints, TrainingHistory** trainingHistory);
+bool diceResult(int min, int max, Guardian* currentRival);
+void travel(Guardian** player, Village** currentVillage, vector<Guardian*>* currentFought, int* currentPoints, JourneyHistory** journey, VillagesControl vControl);
 void alchemy(Guardian** player, Village* currentVillage, VillagesControl vControl);
-void gameEnd(Guardian* player, JourneyHistory* journeyHistory, GuardiansControl gControl);
+bool allVillagesVisited(VillagesControl vControl);
+void gameEnd(Guardian* player, JourneyHistory* journeyHistory, TrainingHistory* trainingHistory, GuardiansControl gControl);
+int gameEndMenu(Guardian* player, GuardiansControl gControl);
+void printJourneyHistory(JourneyHistory* journeyHistory);
+void printTrainingHistory(Guardian* player, TrainingHistory* trainingHistory);
 
 int intInput(string msg, int min, int max);
 void clearConsole();
@@ -110,6 +118,7 @@ void VillagesControl::initializeVillage(string name){
     if(findByName(name) == nullptr){
         Village *newVillage = new Village;
         newVillage->name = name;
+        newVillage->visited = false;
         newVillage->trainingFinished = false;
         newVillage->guardiansInVillage = new vector<Guardian*>;
         villagesList->push_back(newVillage);
@@ -329,33 +338,24 @@ bool verifyData(VillagesControl vControl, GuardiansControl gControl){
 void gameLoop(VillagesControl vControl, GuardiansControl gControl){
     Guardian *player;
     Village *currentVillage;
-    TrainingHistory *trainingHistory = new TrainingHistory;
+    vector<Guardian*> *currentFought = new vector<Guardian*>;
+    int currentPoints = 0;
+    TrainingHistory *trainingHistory = nullptr;
     JourneyHistory *journeyHistory = new JourneyHistory;
 
     if(startMenu() == 1) player = createGuardian(vControl, gControl);
     else player = selectGuardian(vControl, gControl);
     currentVillage = player->village;
+    currentVillage->visited = true;
     journeyHistory->journey.push_back(currentVillage);
 
-    clearConsole();
-    gControl.printGuardianInfo(player);
-    
-    while(1){
-        if(player->power >= 90){
-            gameEnd(player, journeyHistory, gControl);
-            break;
-        }
-        else{
-            int opt = gameMenu(currentVillage);
-            if (opt == 1) train(&player, &currentVillage);
-            else if (opt == 2) travel(&player, &currentVillage, &journeyHistory, vControl);
-            else if (opt == 3) alchemy(&player, currentVillage, vControl);
-            else{
-                gameEnd(player, journeyHistory, gControl);
-                break;
-            }
-        }
+    while(player->power < 60 && !allVillagesVisited(vControl)){
+        int opt = gameMenu(player, currentVillage, gControl);
+        if (opt == 1) train(&player, &currentVillage, currentFought, &currentPoints, &trainingHistory);
+        else if (opt == 2) travel(&player, &currentVillage, currentFought, &currentPoints, &journeyHistory, vControl);
+        else alchemy(&player, currentVillage, vControl);    
     }
+    gameEnd(player, journeyHistory, trainingHistory, gControl);
 }
 
 int startMenu(){
@@ -477,30 +477,101 @@ void transferApprentices(Guardian* guardian, GuardiansControl gControl){
     }
 }
 
-int gameMenu(Village* currentVillage){
+int gameMenu(Guardian* player, Village* currentVillage, GuardiansControl gControl){
     clearConsole();
     int opt;
-    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    cout << "\n\n\tTHE GUARDIAN JOURNEY\n\n";
+    gControl.printGuardianInfo(player);
     cout << "\n\nEn este momento te encuentras en la aldea " << currentVillage->name << ".";
     cout << "\nSelecciona la accion que deseas realizar:";
     cout << "\n\n  1. Entrenar.";
     cout << "\n  2. Viajar.";
     cout << "\n  3. Alquimia.";
-    cout << "\n  4. Salir del juego."; // OPCIÓN DE PRUEBA - Para comprobar datos durante la ejecución.
-    return intInput("\n\nIngresa el numero de tu opcion: ", 1, 4);
+    return intInput("\n\nIngresa el numero de tu opcion: ", 1, 3);
 }
 
-void train(Guardian** player, Village** currentVillage){
+void train(Guardian** player, Village** currentVillage, vector<Guardian*>* currentFought, int* currentPoints, TrainingHistory** trainingHistory){
+    Guardian* &auxPlayer = *player;
+    Village* &auxVillage = *currentVillage;
+    vector<Guardian*> &auxFought = *currentFought;
+    TrainingHistory* &auxTraining = *trainingHistory;
+    vector<Guardian*> &list = *auxVillage->guardiansInVillage;
+    Guardian* currentRival;
+    bool available = true;
+    Guardian* master = list[0];
+    Guardian* auxRecommended = list[0];
+    for(int i = 0; i < list.size(); i++){
+        if(auxRecommended->power > list[i]->power) auxRecommended = list[i];
+        if(master->power < list[i]->power) master = list[i];
+    }
+
     clearConsole();
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    if(!auxVillage->trainingFinished){
+        cout << "\n\nElige el Guardian al que deseas enfrentar:\n";
+        for(int i = 0; i < list.size(); i++){
+            cout << "\n" << i + 1 << ". " << list[i]->name;
+            if(master == list[i]) cout << " - Maestro";
+            if(auxRecommended == list[i]) cout << " - Recomendado para luchar";
+            for(int j = 0; j < currentFought->size(); j++)
+                if(list[i]->name == auxFought[j]->name) cout << " - NO DISPONIBLE";
+            cout << "\n     Poder: " << list[i]->power;
+        }
+        int opt = intInput("\n\nIngresa el numero de tu opcion: ", 1, list.size());
+        currentRival = list[opt - 1];
+        for(int j = 0; j < currentFought->size(); j++)
+            if(currentRival->name == auxFought[j]->name){
+                cout << "\nDebes elegir a otro Guardian.";
+                available = false;
+                break;
+            }
+
+        if(available){
+            TrainingHistory *tempTraining = new TrainingHistory;
+            if(diceResult(1, 6, currentRival)){
+                tempTraining->winner = true;
+                cout << "\nHas ganado. Puntos de poder: " << auxPlayer->power;
+                tempTraining->pointsAtTheMoment = auxPlayer->power;
+                int score = 0;
+                if(currentRival == master) score = 2;
+                else score = 1;
+                *currentPoints += score;
+                tempTraining->score = score;
+                auxPlayer->power += score;
+                cout << " ---> " << auxPlayer->power;
+            }
+            else cout << "\nHas perdido.";
+            auxFought.push_back(currentRival);
+
+            tempTraining->village = auxVillage;
+            tempTraining->rival = currentRival;
+            tempTraining->nextCombat = nullptr;
+            if(auxTraining == nullptr) auxTraining = tempTraining;
+            else{
+                TrainingHistory* &aux = auxTraining;
+                while(aux->nextCombat != nullptr) aux = aux->nextCombat;
+                aux->nextCombat = tempTraining;
+            }
+            if(*currentPoints >= 3) auxVillage->trainingFinished = true;
+        }
+    }
+    else cout << "\n\nNo puedes entrenar en esta aldea. Ya has alcanzado el puntaje maximo.";
 }
 
-void travel(Guardian** player, Village** currentVillage, JourneyHistory** journey, VillagesControl vControl){
+bool diceResult(int min, int max, Guardian* currentRival){
+    int result = currentRival->power * ((rand() % (max - min + 1)) + min);
+    if(result < 300) return true;
+    else return false;
+}
+
+void travel(Guardian** player, Village** currentVillage, vector<Guardian*>* currentFought, int* currentPoints, JourneyHistory** journey, VillagesControl vControl){
     vector<Village*> &list = *vControl.getVillagesList();
     vector<vector<int>> &matrix = *vControl.getAdjacencyMatrix();
     vector<Village*> *temp = new vector<Village*>;
     vector<Village*> &auxTemp = *temp;
     Guardian* &auxPlayer = *player;
     Village* &auxVillage = *currentVillage;
+    vector<Guardian*> &auxFought = *currentFought;
     JourneyHistory* &auxJourney = *journey;
 
     clearConsole();
@@ -518,12 +589,14 @@ void travel(Guardian** player, Village** currentVillage, JourneyHistory** journe
     opt = intInput("\n\nIngresa el numero de tu opcion: ", 1, counter);
 
     auxVillage = auxTemp[opt - 1];
+    auxVillage->visited = true;
     auxPlayer->power++;
+    vector<Guardian*> *tempFougt = new vector<Guardian*>;
+    auxFought = *tempFougt;
+    *currentPoints = 0;
     auxJourney->journey.push_back(auxVillage);
-    free(temp);
 }
 
-// (rand() % (max - min + 1)) + min
 void alchemy(Guardian** player, Village* currentVillage, VillagesControl vControl){
     vector<Village*> &list = *vControl.getVillagesList();
     vector<vector<int>> &matrix = *vControl.getAdjacencyMatrix();
@@ -559,16 +632,69 @@ void alchemy(Guardian** player, Village* currentVillage, VillagesControl vContro
             cout << "\n\nCamino creado.\nEl costo del camino es de " << cost << " puntos.\nTu nuevo puntaje es " << auxPlayer->power << " puntos.";
         }
     }
-    free(temp);
 }
 
-void gameEnd(Guardian* player, JourneyHistory* journeyHistory, GuardiansControl gControl){
+bool allVillagesVisited(VillagesControl vControl){
+    vector<Village*> &list = *vControl.getVillagesList();
+    for(int i = 0; i < list.size(); i++)
+        if(list[i]->visited == false) return false;
+    return true;
+}
+
+void gameEnd(Guardian* player, JourneyHistory* journeyHistory, TrainingHistory* trainingHistory, GuardiansControl gControl){
+    while(1){
+        int opt = gameEndMenu(player, gControl);
+        if(opt == 1){
+            clearConsole();
+            cout << "\n\n\tTHE GUARDIAN JOURNEY\n\n";
+            gControl.printGuardianInfo(player);
+        }
+        else if (opt == 2) printJourneyHistory(journeyHistory);
+        else if (opt == 3) printTrainingHistory(player, trainingHistory);
+        else break;    
+    }
+}
+
+int gameEndMenu(Guardian* player, GuardiansControl gControl){
     clearConsole();
-    gControl.printGuardianInfo(player);
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    cout << "\n\n" << player->name << "(" << player->power << ") vs Stormheart(100)";
+    int opt;
+    cout << "\n\nHas finalizado el juego.";
+    cout << "\nSelecciona la accion que deseas realizar:";
+    cout << "\n\n  1. Ver Informacion personaje.";
+    cout << "\n  2. Ver Historial de Viaje.";
+    cout << "\n  3. Ver Historial de Entrenamiento.";
+    cout << "\n  4. Salir del juego.";
+    return intInput("\n\nIngresa el numero de tu opcion: ", 1, 4);
+}
+
+void printJourneyHistory(JourneyHistory* journeyHistory){
+    clearConsole();
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
     cout << "\n\nHistorial de Viaje:";
     for(int i = 0; i < journeyHistory->journey.size(); i ++){
         cout << "\n" << i + 1 << ". " << journeyHistory->journey[i]->name;
         if(i == 0) cout << " - ORIGEN";
+    }
+}
+
+void printTrainingHistory(Guardian* player, TrainingHistory* trainingHistory){
+    clearConsole();
+    cout << "\n\n\tTHE GUARDIAN JOURNEY";
+    cout << "\n\nHistorial de Entrenamiento:";
+    TrainingHistory &aux = *trainingHistory;
+    int i = 1;
+    while(1){
+        cout << "\n" << i << ". " << aux.village->name;
+        cout << "\n\t" << player->name << " vs " << aux.rival->name;
+        if(aux.winner)
+            cout << "\n\tVictoria - Puntos: " << aux.pointsAtTheMoment << " + "
+            << aux.score << " ---> " << aux.pointsAtTheMoment + aux.score;
+        else cout << "\n\tDerrota";
+        i++;
+        if(aux.nextCombat == nullptr) break;
+        else aux = *aux.nextCombat;
     }
 }
 #pragma endregion
