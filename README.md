@@ -8,7 +8,7 @@ Algoritmos y estructura de Datos - Proyecto Unidad 2
 4. [Descripción del programa](#descripción-del-programa)
     * [Aldeas](#aldeas)
     * [Guardianes](#guardianes)
-
+5. [Video presentación](#video-presentación)
 
 ### Introducción
 The Guardian Journey es un programa que tiene por objetivo reforzar el aprendizaje e implementación de las siguientes estructuras de datos: Listas, Vectores, Árboles y Grafos. Para hacerlo, simula un juego de texto, donde el jugador deberá viajar y enfrentarse a diferentes rivales.
@@ -43,3 +43,6 @@ Para guardar la información de los caminos existentes entre las aldeas, se util
 
 #### Guardianes
 La implementación de los guardianes se realiza a través de un conjunto de nodos de un árbol general, para conservar la jerarquía existente entre maestros y aprendices. Además, se utiliza un vector de guardianes para guardarlos de manera no ordenada.
+
+## Video presentación
+Para acceder al video explicativo de la solución, entrar al siguiente [link](https://youtu.be/q_IcauowARw).
