@@ -4,16 +4,22 @@
 #include <iostream>
 #include <time.h>
 #include <vector>
+using namespace std;
+// Valores de poder Máximo y de Aprendiz.
 #define MAX_POWER 100
 #define APPRENTICE_POWER MAX_POWER / 2;
-using namespace std;
 
+// Región que contiene las estructuras y clases necesarias para el manejo de la información.
 #pragma region Structures and Classes
+
+// Declaración de estructuras.
 struct Village;
 struct Guardian;
 struct TrainingHistory;
 struct JourneyHistory;
 
+// Estructura de Aldea. Contiene nombre, si ya ha sido visitada,
+// si el entrenamiento ha sido finalizado, y un vector de guardianes.
 struct Village{
     string name;
     bool visited;
@@ -21,6 +27,8 @@ struct Village{
     vector<Guardian*> *guardiansInVillage;
 };
 
+// Estructura de Guardián. Contiene nombre, poder, un puntero a su primer aprendiz,
+// un puntero a sus compañeros aprendices de un mismo maestro, y la aldea a la que pertenece.
 struct Guardian{
     string name;
     int power;
@@ -29,6 +37,9 @@ struct Guardian{
     Village *village;
 };
 
+// Estructura de Historial de Entrenamiento. Contiene una aldea, un guardián,
+// si el jugador ganó o perdió, el puntaje obtenido y los puntos que tenía antes
+// de aplicar la suma de puntos.
 struct TrainingHistory{
     Village *village;
     Guardian *rival;
@@ -36,10 +47,14 @@ struct TrainingHistory{
     int score, pointsAtTheMoment;
 };
 
+// Estructra de Historial de Viaje. Contiene un vector de aldeas.
 struct JourneyHistory{
     vector<Village*> journey;
 };
 
+// Clase Control de Aldeas. Contiene la lista de todas las aldeas y la matriz de
+// adyacencia que las relaciona. Contiene las funciones necesarias para manipular
+// y navegar entre estas estructuras.
 class VillagesControl{
     public:
         VillagesControl();
@@ -47,7 +62,6 @@ class VillagesControl{
         Village* findByName(string name);
         void initializeEdge(string name, string connectedVillage);
         void printVillagesList();
-        void printAdjacencyMatrix();
         vector<Village*>* getVillagesList();
         vector<vector<int>>* getAdjacencyMatrix();
     private:
@@ -55,6 +69,8 @@ class VillagesControl{
         vector<vector<int>> *adjacencyMatrix;
 };
 
+// Clase Control de Guardianes. Contiene la lista de todos los guardianes, y las funciones
+// necesarias para manipular y navegar en esta estructura.
 class GuardiansControl{
     public:
         GuardiansControl();
@@ -70,12 +86,16 @@ class GuardiansControl{
 };
 #pragma endregion
 
+// Región que contiene la declaración de funciones generales del juego.
 #pragma region Functions Declaration
+
+// Funciones que sirven para el cargado y verificación de datos.
 void loadData(VillagesControl vControl, GuardiansControl gControl);
 void addGuardianNode(Guardian **list, Guardian *node);
 void sortGuardiansInVillage(VillagesControl vControl, GuardiansControl gControl);
 bool verifyData(VillagesControl vControl, GuardiansControl gControl);
 
+// Funciones generales del cuerpo del juego.
 void gameLoop(VillagesControl vControl, GuardiansControl gControl);
 int startMenu();
 Guardian* createGuardian(VillagesControl vControl, GuardiansControl gControl);
@@ -94,10 +114,14 @@ int gameEndMenu(Guardian* player, GuardiansControl gControl);
 void printJourneyHistory(JourneyHistory* journeyHistory);
 void printTrainingHistory(Guardian* player, vector<TrainingHistory*>* trainingHistory);
 
+// Funciones auxiliares.
 int intInput(string msg, int min, int max);
 void clearConsole();
 #pragma endregion
 
+// Main. Se inicializa la semilla aleatoria. Se crean las instancias de las clases
+// VillagesControl y GuardiansControl. Se cargan los datos. Se verifican y, en caso
+// de que no haya errores, se inicia el juego.
 int main(){
     srand(time(0));
     VillagesControl vControl;
@@ -107,12 +131,17 @@ int main(){
     return 0;
 }
 
+// Región que contiene la inicialización de las funciones de la clase VillagesControl.
 #pragma region VillagesControl Functions
+
+// Constructor general.
 VillagesControl::VillagesControl(){
     villagesList = new vector<Village*>;
     adjacencyMatrix = new vector<vector<int>>;
 }
 
+// Inicializar aldea. Recibe el nombre de la aldea obtenido del documento
+// y crea una nueva aldea.
 void VillagesControl::initializeVillage(string name){
     if(findByName(name) == nullptr){
         Village *newVillage = new Village;
@@ -128,6 +157,7 @@ void VillagesControl::initializeVillage(string name){
     }
 }
 
+// Encontrar aldea por el nombre. Recibe un nombre retorna la aldea en la lista.
 Village* VillagesControl::findByName(string name){
     vector<Village*> &list = *villagesList;
     if(&list[0] != nullptr)
@@ -136,6 +166,8 @@ Village* VillagesControl::findByName(string name){
     return nullptr;
 }
 
+// Inicializar arista. Recibe el nombre de la aldea de origen y la aldea destino.
+// Crea un camino en la matriz de adyacencia.
 void VillagesControl::initializeEdge(string name, string connectedVillage){
     vector<Village*> &list = *villagesList;
     vector<vector<int>> &matrix = *adjacencyMatrix;
@@ -161,40 +193,35 @@ void VillagesControl::initializeEdge(string name, string connectedVillage){
     }
 }
 
+// Imprime la lista de aldeas.
 void VillagesControl::printVillagesList(){
     vector<Village*> &list = *villagesList;
     cout << "\n\n\tAldeas\n";
     for(int i = 0; i < villagesList->size(); i++) cout << i + 1 << ". " << list[i]->name << endl;
 }
 
-void VillagesControl::printAdjacencyMatrix(){
-    vector<vector<int>> &matrix = *adjacencyMatrix;
-    cout << "\n\n\tMatriz\n";
-    int i = 0;
-    for(const auto& row : matrix){
-        for(int value : row){
-            if(value == 0) cout << "- ";
-            else cout << "1 ";
-        }
-        cout << "\n";
-        i++;
-    }
-}
-
+// Retorna la lista de aldeas.
 vector<Village*>* VillagesControl::getVillagesList(){
     return villagesList;
 }
 
+// Retorna la matriz de adyacencia.
 vector<vector<int>>* VillagesControl::getAdjacencyMatrix(){
     return adjacencyMatrix;
 }
 #pragma endregion
 
+// Región que contiene la inicialización de las funciones de la clase GuardiansControl.
 #pragma region GuardiansControl Functions
+
+// Constructor general.
 GuardiansControl::GuardiansControl(){
     guardiansList = new vector<Guardian*>;
 }
 
+// Inicializar guardián. Recibe el nombre, poder, nombre del maestro y nombre de la aldea.
+// Crea un nuevo guardián, lo añade a la lista de su aldea y a la lista de aprendices
+// de su maestro.
 void GuardiansControl::initializeGuardian(string name, string power, string masterName, string village, VillagesControl vControl){
     if(findByName(name) == nullptr){
         Guardian *newGuardian = new Guardian;
@@ -216,6 +243,7 @@ void GuardiansControl::initializeGuardian(string name, string power, string mast
     }
 }
 
+// Encontrar guardián por nombre. Recibe el nombre y retorna el guardián en la lista.
 Guardian* GuardiansControl::findByName(string name){
     vector<Guardian*> &list = *guardiansList;
     if(&list[0] != nullptr)
@@ -224,6 +252,8 @@ Guardian* GuardiansControl::findByName(string name){
     return nullptr;
 }
 
+// Encontrar guardián maestro. Recibe el nombre de un guardián y encuentra a
+// su maestro en la lista de guardianes.
 Guardian* GuardiansControl::findMaster(Guardian* requested){
     vector<Guardian*> &list = *guardiansList;
     queue<Guardian*> q;
@@ -245,6 +275,7 @@ Guardian* GuardiansControl::findMaster(Guardian* requested){
     return nullptr;
 }
 
+// Índice del guardián. Recibe un guardián y encuentra su índice en la lista.
 int GuardiansControl::guardianIndex(Guardian* current){
     vector<Guardian*> &list = *guardiansList;
     for(int i = 0; i < guardiansList->size(); i++)
@@ -252,6 +283,7 @@ int GuardiansControl::guardianIndex(Guardian* current){
     return -1;
 }
 
+// Imprimir información de Guardián. Recibe un guardián e imprime sus datos.
 void GuardiansControl::printGuardianInfo(Guardian* current){
     if(current != nullptr){
         cout << current->name;
@@ -261,6 +293,7 @@ void GuardiansControl::printGuardianInfo(Guardian* current){
     }
 }
 
+// Imprimir lista de Guardianes.
 void GuardiansControl::printGuardiansList(){
     vector<Guardian*> &list = *guardiansList;
     cout << "\n\n\tGuardianes\n";
@@ -273,12 +306,17 @@ void GuardiansControl::printGuardiansList(){
     }
 }
 
+// Retorna la lista de guardianes.
 vector<Guardian*>* GuardiansControl::getGuardiansList(){
     return guardiansList;
 }
 #pragma endregion
 
+// Región que contiene la inicialización de las funciones de cargado y verificación de datos.
 #pragma region Loading Data
+
+// Cargado de datos. Recibe las clases que controlan los datos de las aldeas
+// y los guardianes y carga los datos desde los archivos de texto.
 void loadData(VillagesControl vControl, GuardiansControl gControl){
     ifstream file;
     string name, power, masterName, connectedVillage;
@@ -305,6 +343,8 @@ void loadData(VillagesControl vControl, GuardiansControl gControl){
     sortGuardiansInVillage(vControl, gControl);
 }
 
+// Agregar guardián. Recibe la lista de aprendices de un guardián y añade
+// al nuevo guardián a esa lista.
 void addGuardianNode(Guardian **list, Guardian *node){
     if(*list == nullptr) *list = node;
     else{
@@ -314,6 +354,7 @@ void addGuardianNode(Guardian **list, Guardian *node){
     }
 }
 
+// Ordena los guardianes en la aldea, según sus puntos de poder.
 void sortGuardiansInVillage(VillagesControl vControl, GuardiansControl gControl){
     vector<Village*> &villages = *vControl.getVillagesList();
     for(int i = 0; i < villages.size(); i++){
@@ -322,6 +363,7 @@ void sortGuardiansInVillage(VillagesControl vControl, GuardiansControl gControl)
     }
 }
 
+// Comprueba que las aldeas tengan suficientes guardianes.
 bool verifyData(VillagesControl vControl, GuardiansControl gControl){
     vector<Village*> &villages = *vControl.getVillagesList();
     for(int i = 0; i < villages.size(); i++)
@@ -333,7 +375,11 @@ bool verifyData(VillagesControl vControl, GuardiansControl gControl){
 }
 #pragma endregion
 
+// Región que contiene la inicialización de las funciones del cuerpo del juego.
 #pragma region Game Body
+
+// Contiene el Loop principal del juego. Aquí ocurre la selección/creación del personaje,
+// el menú principal del juego, y el menú final del juego.
 void gameLoop(VillagesControl vControl, GuardiansControl gControl){
     Guardian *player;
     Village *currentVillage;
@@ -357,6 +403,7 @@ void gameLoop(VillagesControl vControl, GuardiansControl gControl){
     gameEnd(player, journeyHistory, trainingHistory, gControl);
 }
 
+// Muestra el menú de selección/creación de personaje y retorna la opción elegida.
 int startMenu(){
     clearConsole();
     int opt;
@@ -367,6 +414,8 @@ int startMenu(){
     return intInput("\n\nIngresa el numero de tu opcion: ", 1, 2);
 }
 
+// Crea un nuevo guardián. En caso de que el nombre del guardián ya esté presente
+// en la lista, tansforma el guardián en jugador.
 Guardian* createGuardian(VillagesControl vControl, GuardiansControl gControl){
     clearConsole();
     vector<Village*> &villages = *vControl.getVillagesList();
@@ -391,6 +440,7 @@ Guardian* createGuardian(VillagesControl vControl, GuardiansControl gControl){
     else return guardianToPlayer(current, vControl, gControl);
 }
 
+// Selecciona un guardián existente.
 Guardian* selectGuardian(VillagesControl vControl, GuardiansControl gControl){
     clearConsole();
     vector<Guardian*> &list = *gControl.getGuardiansList();
@@ -406,6 +456,7 @@ Guardian* selectGuardian(VillagesControl vControl, GuardiansControl gControl){
     return guardianToPlayer(current, vControl, gControl);
 }
 
+// Transforma los datos del guardián elegido para poder usarlo como jugador.
 Guardian* guardianToPlayer(Guardian* guardian, VillagesControl vControl, GuardiansControl gControl){
     Guardian *master = gControl.findMaster(guardian);
 
@@ -438,6 +489,7 @@ Guardian* guardianToPlayer(Guardian* guardian, VillagesControl vControl, Guardia
     return guardian;
 }
 
+// Retira el guardián elegido de la lista de aprendices.
 void removeFromTree(Guardian* master, Guardian* requested){
     Guardian *current = master->firstApprentice;
     while(1){
@@ -454,6 +506,8 @@ void removeFromTree(Guardian* master, Guardian* requested){
     }
 }
 
+// En caso de que el guardián elegido tenga aprendices, estos se transfieren
+// al primer guardián sin aprendices que se encuentre.
 void transferApprentices(Guardian* guardian, GuardiansControl gControl){
     vector<Guardian*> &list = *gControl.getGuardiansList();
     queue<Guardian*> q;
@@ -476,6 +530,8 @@ void transferApprentices(Guardian* guardian, GuardiansControl gControl){
     }
 }
 
+// Menú principal del juego. Muestra las opciones de Entrenar, Viajar y Alquimia,
+// y retorna la opción elegida.
 int gameMenu(Guardian* player, Village* currentVillage, GuardiansControl gControl){
     clearConsole();
     int opt;
@@ -489,6 +545,11 @@ int gameMenu(Guardian* player, Village* currentVillage, GuardiansControl gContro
     return intInput("\n\nIngresa el numero de tu opcion: ", 1, 3);
 }
 
+// Entrenamiento. Muestra la lista de guardianes con los que se puede enfrentar,
+// indica cuál es el maestro y el guardián recomendado.
+// Esta función se asegura de que el jugador solo pueda alcanzar el puntaje máximo
+// por aldea una sola vez.
+// Añade el combate realizado al historial de entrenamiento.
 void train(Guardian** player, Village** currentVillage, vector<Guardian*>* currentFought, int* currentPoints, vector<TrainingHistory*>* trainingHistory){
     Guardian* &auxPlayer = *player;
     Village* &auxVillage = *currentVillage;
@@ -555,12 +616,19 @@ void train(Guardian** player, Village** currentVillage, vector<Guardian*>* curre
     else cout << "\n\nNo puedes entrenar en esta aldea. Ya has alcanzado el puntaje maximo.";
 }
 
+// Resultado de los dados. Multiplica el poder del rival por un resultado
+// aleatorio entre 1 y 6. En caso de que el resultado sea menor que 300
+// el jugador gana el enfrentamiento.
+// De esta forma, a mayor puntaje, menos probable es ganar.
 bool diceResult(int min, int max, Guardian* currentRival){
     int result = currentRival->power * ((rand() % (max - min + 1)) + min);
     if(result < 300) return true;
     else return false;
 }
 
+// Función de viaje. El jugador selecciona la aldea a la que quiere ir
+// y recibe puntaje por hacerlo. Resetea los guardianes enfrentados y la cantidad
+// actual de puntaje obtenido. Añade la aldea al historial de viaje.
 void travel(Guardian** player, Village** currentVillage, vector<Guardian*>* currentFought, int* currentPoints, JourneyHistory** journey, VillagesControl vControl){
     vector<Village*> &list = *vControl.getVillagesList();
     vector<vector<int>> &matrix = *vControl.getAdjacencyMatrix();
@@ -594,6 +662,9 @@ void travel(Guardian** player, Village** currentVillage, vector<Guardian*>* curr
     auxJourney->journey.push_back(auxVillage);
 }
 
+// Función de alquimia. El jugador selecciona la aldea a la que quiere construir
+// el camino, y manipula la matriz de adyacencia para guardar los cambios.
+// El camino tiene un costo aleatorio de 2, 3 o 4 puntos de poder.
 void alchemy(Guardian** player, Village* currentVillage, VillagesControl vControl){
     vector<Village*> &list = *vControl.getVillagesList();
     vector<vector<int>> &matrix = *vControl.getAdjacencyMatrix();
@@ -631,6 +702,7 @@ void alchemy(Guardian** player, Village* currentVillage, VillagesControl vContro
     }
 }
 
+// Comprueba si todas las aldeas de la lista han sido visitadas.
 bool allVillagesVisited(VillagesControl vControl){
     vector<Village*> &list = *vControl.getVillagesList();
     for(int i = 0; i < list.size(); i++)
@@ -638,6 +710,8 @@ bool allVillagesVisited(VillagesControl vControl){
     return true;
 }
 
+// Al terminar el juego, se dan las opciones de ver los datos del personaje,
+// ver el historial de viaje, ver el historial de entrenamiento, o salir.
 void gameEnd(Guardian* player, JourneyHistory* journeyHistory, vector<TrainingHistory*>* trainingHistory, GuardiansControl gControl){
     while(1){
         int opt = gameEndMenu(player, gControl);
@@ -652,6 +726,7 @@ void gameEnd(Guardian* player, JourneyHistory* journeyHistory, vector<TrainingHi
     }
 }
 
+// Menú final del juego. Retorna la opción seleccionada.
 int gameEndMenu(Guardian* player, GuardiansControl gControl){
     clearConsole();
     cout << "\n\n\tTHE GUARDIAN JOURNEY";
@@ -666,6 +741,7 @@ int gameEndMenu(Guardian* player, GuardiansControl gControl){
     return intInput("\n\nIngresa el numero de tu opcion: ", 1, 4);
 }
 
+// Imprime el historial de viaje. Muestra cuál es la aldea de origen.
 void printJourneyHistory(JourneyHistory* journeyHistory){
     clearConsole();
     cout << "\n\n\tTHE GUARDIAN JOURNEY";
@@ -676,6 +752,8 @@ void printJourneyHistory(JourneyHistory* journeyHistory){
     }
 }
 
+// Imprime el historial de entrenamiento. Muestra el rival, si ganó o perdió, y
+// en caso de haber ganado muestra el puntaje obtenido, el puntaje anterior y el puntaje final.
 void printTrainingHistory(Guardian* player, vector<TrainingHistory*>* trainingHistory){
     clearConsole();
     vector<TrainingHistory*> &history = *trainingHistory;
@@ -694,7 +772,11 @@ void printTrainingHistory(Guardian* player, vector<TrainingHistory*>* trainingHi
 }
 #pragma endregion
 
+// Región que contiene la inicialización de las funciones auxiliares.
 #pragma region Auxiliar Functions
+
+// Función que se asegura que el input del usuario sea un entero,
+// y que este se encuentre dentro del rango solicitado.
 int intInput(string msg, int min, int max){
     int opt;
     do{
@@ -709,6 +791,7 @@ int intInput(string msg, int min, int max){
     }while(1);
 }
 
+// Función estética que limpia la pantalla.
 void clearConsole(){
     cout << "\n\n";
     system("pause");
