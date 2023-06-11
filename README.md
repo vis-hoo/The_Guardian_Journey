@@ -28,9 +28,13 @@ Para instalar el programa, por favor siga los pasos descritos en el documento [I
 ## Descripción del programa
 La historia detrás de The Guardian Journey es la siguiente:
 > En un mundo devastado por la guerra y la lucha constante existen los Guardianes. Los Guardianes son héroes con habilidades y destrezas únicas que protegen a las aldeas a lo largo de toda la tierra siendo estas los últimos asentamientos de la humanidad.
+
 > Tesla es la capital de estas tierras y hoy corresponde a un farol en la oscuridad donde abunda la prosperidad, el desarrollo tecnológico y entregan la mayor protección a lo largo del nuevo mundo.
+
 > A los alrededores de Tesla se encuentran las aldeas que corresponden a asentamientos que cumplen distintas funciones dentro de la gran organización de la humanidad y en cada una de estas aldeas existen maestros, quienes enseñan las artes de los guardianes.
+
 > El sueño de cada niño es convertirse en un Guardián y ganar el torneo, pero el viaje de un aprendiz no es fácil y su destino depende de las decisiones que tome a lo largo de este recorrido.
+
 Para este proyecto se exige el uso de estructuras que permitan almacenar los datos de las distintas Aldeas y Guardianes.
 
 #### Aldeas
