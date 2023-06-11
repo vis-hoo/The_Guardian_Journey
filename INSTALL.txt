@@ -1,0 +1,7 @@
+El programa está construido para funcionar correctamente en Windows.
+Para instalar y ejecutar correctamente el programa debe seguir los siguientes pasos:
+    1. Abrir el archivo "proyecto_unidad2.cpp" con un editor de código para lenguaje C++.
+    2. Compilar para obtener el archivo "proyecto_unidad2.exe".
+    3. Asegurarse que los archivos "guardians.txt" y "villages.txt" se encuentre en la misma
+        carpeta que el archivo "proyecto_unidad2.exe".
+    4. Ejecutar el archivo "proyecto_unidad2.exe".
